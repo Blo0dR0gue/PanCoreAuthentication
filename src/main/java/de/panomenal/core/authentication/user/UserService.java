@@ -4,8 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import de.panomenal.core.authentication.auxiliary.data.RegistrationRequestData;
-import de.panomenal.core.authentication.auxiliary.exceptions.UserAlreadyExistAuthenticationException;
+import de.panomenal.core.authentication.auxiliary.data.request.RegistrationRequestData;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import de.panomenal.core.authentication.role.ERole;
 import de.panomenal.core.authentication.role.Role;
 import de.panomenal.core.authentication.role.RoleRepository;
@@ -57,6 +57,7 @@ public class UserService {
         String strRole = requestData.getRole();
         Role role = null;
 
+        // TODO: Rework this logic
         if (strRole == null) {
             role = roleRepository.findByName(ERole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));

@@ -1,4 +1,4 @@
-package de.panomenal.core.authentication.auxiliary.data;
+package de.panomenal.core.authentication.auxiliary.data.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
