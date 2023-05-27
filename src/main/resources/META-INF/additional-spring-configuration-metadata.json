@@ -1,0 +1,19 @@
+{
+  "properties": [
+    {
+      "name": "pancore.auth.twoFATokenValid",
+      "type": "java.lang.String",
+      "description": "Time in seconds a temp 2FA token is valid"
+    },
+    {
+      "name": "pancore.auth.twoFATokenValid",
+      "type": "java.lang.String",
+      "description": "Hash secret for the jwt algo"
+    },
+    {
+      "name": "pancore.auth.jwtExpiration",
+      "type": "java.lang.String",
+      "description": "Time in seconds a jwt token is valid"
+    }
+  ]
+}
