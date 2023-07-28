@@ -13,6 +13,7 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import de.panomenal.core.authentication.auxiliary.data.response.ApiErrorResponse;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import jakarta.persistence.EntityNotFoundException;
 
 @ControllerAdvice
@@ -35,6 +36,11 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
     @ExceptionHandler(UsernameNotFoundException.class)
     protected ResponseEntity<Object> handleUsernameNotFoundException(UsernameNotFoundException ex) {
         return buildErrorResponse(ex, "Username not found", HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    protected ResponseEntity<Object> handleAuthenticationException(AuthenticationException ex) {
+        return buildErrorResponse(ex, "Authentication failed", HttpStatus.BAD_REQUEST);
     }
 
     /**

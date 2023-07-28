@@ -32,7 +32,7 @@ public class JwtUtils {
 
     public String generateToken(UserDetailsImpl userDetails, boolean twoFAAuthentication) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put(AppConstants.AUTHENTICATED, twoFAAuthentication); // AUTHENTICATED as claim
+        claims.put(AppConstants.TWO_FA_AUTHENTICATION, twoFAAuthentication);
         return doGenerateToken(claims, userDetails.getUsername(), twoFAAuthentication);
     }
 
@@ -59,7 +59,7 @@ public class JwtUtils {
     }
 
     public Boolean isAuthenticated(String token) {
-        return this.getAllClaimsFromToken(token).get(AppConstants.AUTHENTICATED, Boolean.class);
+        return this.getAllClaimsFromToken(token).get(AppConstants.TWO_FA_AUTHENTICATION, Boolean.class);
     }
 
     public String getUsernameFromToken(String token) {
