@@ -11,4 +11,5 @@ public class AppConstants {
     public static final String VERIFY_TWO_FA_PATH = "/verifyTwoFA";
     public static final String REFRESH_PATH = "/refresh";
     public static final String LOGOUT_PATH = "/logout";
+    public static final String QR_ISSUER = "Panomenal";
 }

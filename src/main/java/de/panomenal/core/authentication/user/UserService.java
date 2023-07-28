@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import de.panomenal.core.authentication.auxiliary.data.request.RegistrationRequestData;
+import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import de.panomenal.core.authentication.role.ERole;
 import de.panomenal.core.authentication.role.Role;
@@ -39,7 +39,7 @@ public class UserService {
         }
     }
 
-    public User registerUser(RegistrationRequestData requestData) {
+    public User registerUser(RegisterRequest requestData) {
         this.checkIfUserExists(requestData.getUsername(), requestData.getEmail());
 
         // Create new user's account
@@ -51,7 +51,7 @@ public class UserService {
 
         if (requestData.isUsing2FA()) {
             user.setUsing2FA(true);
-            user.setSecret(requestData.getSecret());
+            user.setSecret(requestData.getTwoFASecret());
         }
 
         String strRole = requestData.getRole();

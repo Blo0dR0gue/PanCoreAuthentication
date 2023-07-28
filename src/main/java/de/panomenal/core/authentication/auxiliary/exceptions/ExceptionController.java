@@ -14,6 +14,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import de.panomenal.core.authentication.auxiliary.data.response.ApiErrorResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import jakarta.persistence.EntityNotFoundException;
 
 @ControllerAdvice
@@ -40,7 +41,13 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     protected ResponseEntity<Object> handleAuthenticationException(AuthenticationException ex) {
-        return buildErrorResponse(ex, "Authentication failed", HttpStatus.BAD_REQUEST);
+        return buildErrorResponse(ex, ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(UserAlreadyExistAuthenticationException.class)
+    public ResponseEntity<Object> handleUserAlreadyExistAuthenticationException(
+            UserAlreadyExistAuthenticationException ex) {
+        return buildErrorResponse(ex, "User already exists", HttpStatus.BAD_REQUEST);
     }
 
     /**

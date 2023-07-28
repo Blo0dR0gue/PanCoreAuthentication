@@ -1,8 +1,8 @@
 package de.panomenal.core.authentication.auth;
 
+import static dev.samstevens.totp.util.Utils.getDataUriForImage;
+
 import java.util.Objects;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +11,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,8 +21,16 @@ import de.panomenal.core.authentication.auth.jwt.JwtUtils;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsImpl;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsServiceImpl;
 import de.panomenal.core.authentication.auxiliary.data.request.LoginRequest;
+import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
 import de.panomenal.core.authentication.auxiliary.data.response.JwtResponse;
+import de.panomenal.core.authentication.auxiliary.data.response.SignUpResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
+import de.panomenal.core.authentication.user.UserService;
+import dev.samstevens.totp.code.CodeVerifier;
+import dev.samstevens.totp.exceptions.QrGenerationException;
+import dev.samstevens.totp.qr.QrData;
+import dev.samstevens.totp.qr.QrDataFactory;
+import dev.samstevens.totp.qr.QrGenerator;
 import jakarta.validation.Valid;
 
 @Controller
@@ -38,6 +45,18 @@ public class AuthController {
 
     @Autowired
     JwtUtils jwtUtils;
+
+    @Autowired
+    UserService userService;
+
+    @Autowired
+    QrDataFactory qrDataFactory;
+
+    @Autowired
+    QrGenerator qrGenerator;
+
+    @Autowired
+    CodeVerifier verifier;
 
     @GetMapping(AppConstants.LOGIN_PATH)
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
@@ -58,8 +77,35 @@ public class AuthController {
     }
 
     @GetMapping(AppConstants.REGISTER_PATH)
-    public ResponseEntity<?> registerRequest() {
-        return null;
+    public ResponseEntity<SignUpResponse> registerRequest(@Valid @RequestBody RegisterRequest registerRequest) {
+        if (registerRequest.isUsing2FA() && registerRequest.getTwoFACode() == null) {
+            // Is using 2FA but does not provided a code yet. (First register)
+            userService.checkIfUserExists(registerRequest.getUsername(), registerRequest.getEmail());
+
+            String secret = userService.generate2FASecret();
+            QrData qrData = qrDataFactory.newBuilder().label(registerRequest.getEmail()).secret(secret)
+                    .issuer(AppConstants.QR_ISSUER).build();
+
+            try {
+                String qrCodeImg = getDataUriForImage(qrGenerator.generate(qrData), qrGenerator.getImageMimeType());
+                return ResponseEntity.ok().body(new SignUpResponse(true, qrCodeImg, secret, false));
+            } catch (QrGenerationException e) {
+                e.printStackTrace();
+            }
+        } else if (registerRequest.isUsing2FA() && registerRequest.getTwoFACode() != null) {
+            // Is using 2FA code validation.
+            if (!verifier.isValidCode(registerRequest.getTwoFASecret(), registerRequest.getTwoFACode())) {
+                return ResponseEntity.ok(new SignUpResponse(true, null, null, false));
+            } else {
+                userService.registerUser(registerRequest);
+                return ResponseEntity.ok(new SignUpResponse(true, null, null, true));
+            }
+        } else {
+            // Is not using 2FA
+            userService.registerUser(registerRequest);
+            return ResponseEntity.ok(new SignUpResponse(false, null, null, true));
+        }
+        return ResponseEntity.badRequest().body(new SignUpResponse(false, null, null, false));
     }
 
     @GetMapping(AppConstants.VERIFY_PATH)
