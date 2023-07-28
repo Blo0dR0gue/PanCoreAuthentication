@@ -31,7 +31,6 @@ public class AuthConfiguration {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
             throws Exception {
-        // Setting up auth manager
         return authenticationConfiguration.getAuthenticationManager();
     }
 
