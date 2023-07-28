@@ -11,6 +11,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,6 +26,7 @@ import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
 import de.panomenal.core.authentication.auxiliary.data.response.JwtResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.SignUpResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
 import de.panomenal.core.authentication.user.UserService;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.exceptions.QrGenerationException;
@@ -32,6 +34,7 @@ import dev.samstevens.totp.qr.QrData;
 import dev.samstevens.totp.qr.QrDataFactory;
 import dev.samstevens.totp.qr.QrGenerator;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
 @Controller
 @RequestMapping(path = AppConstants.AUTH_URL)
@@ -115,8 +118,21 @@ public class AuthController {
 
     @GetMapping(AppConstants.VERIFY_TWO_FA_PATH)
     @PreAuthorize("hasRole('ROLE_PRE_VERIFICATION_USER')")
-    public ResponseEntity<?> verifyTwoFARequest() {
-        return null;
+    public ResponseEntity<JwtResponse> verifyTwoFARequest(@NotEmpty @RequestBody String twoFACode,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) throws Invalid2FACodeException {
+        if (!verifier.isValidCode(userDetails.getSecret(), twoFACode)) {
+            throw new Invalid2FACodeException("Invalid Code");
+        }
+        String jwt = jwtUtils.generateToken(userDetails, true);
+
+        String role = userDetails.getAuthority().getAuthority();
+
+        return ResponseEntity.ok(new JwtResponse(jwt,
+                userDetails.getId(),
+                userDetails.getUsername(),
+                userDetails.getEmail(),
+                role,
+                true));
     }
 
     @GetMapping(AppConstants.REFRESH_PATH)

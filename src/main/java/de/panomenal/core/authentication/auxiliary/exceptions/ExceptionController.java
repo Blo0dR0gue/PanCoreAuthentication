@@ -14,7 +14,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import de.panomenal.core.authentication.auxiliary.data.response.ApiErrorResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
+import dev.samstevens.totp.exceptions.QrGenerationException;
 import jakarta.persistence.EntityNotFoundException;
 
 @ControllerAdvice
@@ -45,9 +47,24 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(UserAlreadyExistAuthenticationException.class)
-    public ResponseEntity<Object> handleUserAlreadyExistAuthenticationException(
+    protected ResponseEntity<Object> handleUserAlreadyExistAuthenticationException(
             UserAlreadyExistAuthenticationException ex) {
         return buildErrorResponse(ex, "User already exists", HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(Invalid2FACodeException.class)
+    protected ResponseEntity<Object> handleInvalid2FACodeException(Invalid2FACodeException ex) {
+        return buildErrorResponse(ex, ex.getMessage(), HttpStatus.BAD_GATEWAY);
+    }
+
+    @ExceptionHandler(QrGenerationException.class)
+    public ResponseEntity<Object> handleQrGenerationException(QrGenerationException ex) {
+        return buildErrorResponse(ex, ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
+        return buildErrorResponse(ex, ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     /**
