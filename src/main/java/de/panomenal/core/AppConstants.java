@@ -8,5 +8,6 @@ public class AppConstants {
     public static final String LOGIN_PATH = "/login";
     public static final String REGISTER_PATH = "/register";
     public static final String VERIFY_PATH = "/verify";
+    public static final String VERIFY_TWO_FA_PATH = "/verifyTwoFA";
     public static final String REFRESH_PATH = "/refresh";
 }

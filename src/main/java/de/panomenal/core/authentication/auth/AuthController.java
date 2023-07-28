@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -60,6 +61,12 @@ public class AuthController {
 
     @GetMapping(AppConstants.VERIFY_PATH)
     public ResponseEntity<?> verifyRequest() {
+        return null;
+    }
+
+    @GetMapping(AppConstants.VERIFY_TWO_FA_PATH)
+    @PreAuthorize("hasRole('ROLE_PRE_VERIFICATION_USER')")
+    public ResponseEntity<?> verifyTwoFARequest() {
         return null;
     }
 
