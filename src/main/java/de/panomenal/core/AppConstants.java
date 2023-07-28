@@ -10,4 +10,5 @@ public class AppConstants {
     public static final String VERIFY_PATH = "/verify";
     public static final String VERIFY_TWO_FA_PATH = "/verifyTwoFA";
     public static final String REFRESH_PATH = "/refresh";
+    public static final String LOGOUT_PATH = "/logout";
 }

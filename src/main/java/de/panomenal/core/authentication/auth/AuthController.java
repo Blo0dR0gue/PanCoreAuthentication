@@ -78,6 +78,11 @@ public class AuthController {
         return null;
     }
 
+    @GetMapping(AppConstants.LOGOUT_PATH)
+    public ResponseEntity<?> logoutRequest() {
+        return null;
+    }
+
     private void authenticate(String username, String password) {
         Objects.requireNonNull(username);
         Objects.requireNonNull(password);
