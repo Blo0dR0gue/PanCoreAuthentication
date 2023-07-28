@@ -43,6 +43,9 @@ public class AuthController {
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
         authenticate(loginRequest.getUsername(), loginRequest.getPassword());
 
+        // TODO: handle logout (add token to blacklist if still valid)
+        // TODO: Account Lockout for brute force protection
+
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
         boolean twoFAAuthentication = userDetails.isUsing2FA();
 
