@@ -27,9 +27,6 @@ public class UserDetailsImpl implements UserDetails {
 
     private boolean using2FA;
 
-    /**
-     * 2FA-Secret if using 2FA
-     */
     private String secret;
 
     @JsonIgnore
