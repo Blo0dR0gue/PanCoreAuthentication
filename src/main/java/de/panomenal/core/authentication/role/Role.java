@@ -1,5 +1,6 @@
 package de.panomenal.core.authentication.role;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -25,6 +26,7 @@ public class Role {
     private int id;
 
     @Enumerated(EnumType.STRING)
+    @Column(unique = true)
     private ERole name;
 
     public Role(ERole name) {
