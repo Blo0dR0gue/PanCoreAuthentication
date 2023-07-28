@@ -109,6 +109,11 @@ public class UserDetailsImpl implements UserDetails {
         return this.enabled;
     }
 
+    public boolean canLogin() {
+        return !this.isAccountNonExpired() && !this.isAccountNonLocked() && !this.isCredentialsNonExpired()
+                && this.isEnabled();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o)

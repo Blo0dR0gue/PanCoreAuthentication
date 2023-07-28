@@ -33,6 +33,7 @@ import dev.samstevens.totp.exceptions.QrGenerationException;
 import dev.samstevens.totp.qr.QrData;
 import dev.samstevens.totp.qr.QrDataFactory;
 import dev.samstevens.totp.qr.QrGenerator;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 
@@ -136,8 +137,21 @@ public class AuthController {
     }
 
     @GetMapping(AppConstants.REFRESH_PATH)
-    public ResponseEntity<?> refreshRequest() {
-        return null;
+    public ResponseEntity<JwtResponse> refreshRequest(@NotEmpty HttpServletRequest request) {
+        String authToken = request.getHeader(AppConstants.AUTH_HEADER);
+        // remove bearer + space
+        final String token = authToken.substring(7);
+        String username = jwtUtils.getUsernameFromToken(token);
+        UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
+
+        if (jwtUtils.canTokenBeRefreshed(token) && userDetails.canLogin()) {
+            String refreshedToken = jwtUtils.refreshToken(token);
+            // Just send back the token
+            return ResponseEntity.ok(new JwtResponse(refreshedToken));
+        } else {
+            // Token cant be refreshed because it is expired or user cant login anymore
+            return ResponseEntity.badRequest().body(new JwtResponse(null));
+        }
     }
 
     @GetMapping(AppConstants.LOGOUT_PATH)
@@ -155,6 +169,8 @@ public class AuthController {
             throw new AuthenticationException("User is disabled", e);
         } catch (BadCredentialsException e) {
             throw new AuthenticationException("Credentials are invalid", e);
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            throw new AuthenticationException("Authentication failed", e);
         }
     }
 
