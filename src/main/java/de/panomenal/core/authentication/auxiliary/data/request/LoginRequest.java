@@ -1,6 +1,7 @@
 package de.panomenal.core.authentication.auxiliary.data.request;
 
-import jakarta.validation.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
+
 import lombok.Getter;
 import lombok.Setter;
 

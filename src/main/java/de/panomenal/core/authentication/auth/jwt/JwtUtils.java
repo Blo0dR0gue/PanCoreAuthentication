@@ -10,7 +10,7 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import de.panomenal.core.AppConstants;
+import de.panomenal.core.authentication.AppConstants;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -58,7 +58,7 @@ public class JwtUtils {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
-    public Boolean isAuthenticated(String token) {
+    public Boolean isTwoFAAuthentication(String token) {
         return this.getAllClaimsFromToken(token).get(AppConstants.TWO_FA_AUTHENTICATION, Boolean.class);
     }
 

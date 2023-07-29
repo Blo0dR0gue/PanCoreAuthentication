@@ -2,7 +2,12 @@ package de.panomenal.core.authentication.auth;
 
 import static dev.samstevens.totp.util.Utils.getDataUriForImage;
 
+import java.util.List;
 import java.util.Objects;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -12,12 +17,13 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import de.panomenal.core.AppConstants;
+import de.panomenal.core.authentication.AppConstants;
 import de.panomenal.core.authentication.auth.jwt.JwtUtils;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsImpl;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsServiceImpl;
@@ -25,17 +31,16 @@ import de.panomenal.core.authentication.auxiliary.data.request.LoginRequest;
 import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
 import de.panomenal.core.authentication.auxiliary.data.response.JwtResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.SignUpResponse;
+import de.panomenal.core.authentication.auxiliary.data.response.VerifyResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
+import de.panomenal.core.authentication.role.ERole;
 import de.panomenal.core.authentication.user.UserService;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import dev.samstevens.totp.qr.QrData;
 import dev.samstevens.totp.qr.QrDataFactory;
 import dev.samstevens.totp.qr.QrGenerator;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 
 @Controller
 @RequestMapping(path = AppConstants.AUTH_URL)
@@ -62,7 +67,7 @@ public class AuthController {
     @Autowired
     CodeVerifier verifier;
 
-    @GetMapping(AppConstants.LOGIN_PATH)
+    @PostMapping(AppConstants.LOGIN_PATH)
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
         authenticate(loginRequest.getUsername(), loginRequest.getPassword());
 
@@ -80,7 +85,7 @@ public class AuthController {
                 userDetails.getEmail(), role, twoFAAuthentication));
     }
 
-    @GetMapping(AppConstants.REGISTER_PATH)
+    @PostMapping(AppConstants.REGISTER_PATH)
     public ResponseEntity<SignUpResponse> registerRequest(@Valid @RequestBody RegisterRequest registerRequest) {
         if (registerRequest.isUsing2FA() && registerRequest.getTwoFACode() == null) {
             // Is using 2FA but does not provided a code yet. (First register)
@@ -112,19 +117,31 @@ public class AuthController {
         return ResponseEntity.badRequest().body(new SignUpResponse(false, null, null, false));
     }
 
-    @GetMapping(AppConstants.VERIFY_PATH)
-    public ResponseEntity<?> verifyRequest() {
-        return null;
+    @PostMapping(AppConstants.VERIFY_PATH)
+    public ResponseEntity<?> verifyRequest(@NotEmpty @RequestBody String accessToken) {
+        String username = jwtUtils.getUsernameFromToken(accessToken);
+        if (username != null) {
+            UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
+            if (jwtUtils.validateToken(accessToken, userDetails)) {
+                // Is Valid token
+                return ResponseEntity.ok(new VerifyResponse(new UsernamePasswordAuthenticationToken(userDetails,
+                        null,
+                        jwtUtils.isTwoFAAuthentication(accessToken)
+                                ? List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name()))
+                                : userDetails.getAuthorities())));
+            }
+        }
+        return ResponseEntity.badRequest().body(new VerifyResponse(null));
     }
 
-    @GetMapping(AppConstants.VERIFY_TWO_FA_PATH)
+    @PostMapping(AppConstants.VERIFY_TWO_FA_PATH)
     @PreAuthorize("hasRole('ROLE_PRE_VERIFICATION_USER')")
     public ResponseEntity<JwtResponse> verifyTwoFARequest(@NotEmpty @RequestBody String twoFACode,
             @AuthenticationPrincipal UserDetailsImpl userDetails) throws Invalid2FACodeException {
         if (!verifier.isValidCode(userDetails.getSecret(), twoFACode)) {
             throw new Invalid2FACodeException("Invalid Code");
         }
-        String jwt = jwtUtils.generateToken(userDetails, true);
+        String jwt = jwtUtils.generateToken(userDetails, false);
 
         String role = userDetails.getAuthority().getAuthority();
 
@@ -133,10 +150,10 @@ public class AuthController {
                 userDetails.getUsername(),
                 userDetails.getEmail(),
                 role,
-                true));
+                false));
     }
 
-    @GetMapping(AppConstants.REFRESH_PATH)
+    @PostMapping(AppConstants.REFRESH_PATH)
     public ResponseEntity<JwtResponse> refreshRequest(@NotEmpty HttpServletRequest request) {
         String authToken = request.getHeader(AppConstants.AUTH_HEADER);
         // remove bearer + space
@@ -154,7 +171,7 @@ public class AuthController {
         }
     }
 
-    @GetMapping(AppConstants.LOGOUT_PATH)
+    @PostMapping(AppConstants.LOGOUT_PATH)
     public ResponseEntity<?> logoutRequest() {
         return null;
     }

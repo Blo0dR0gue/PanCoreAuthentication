@@ -1,8 +1,9 @@
 package de.panomenal.core.authentication.auxiliary.exceptions;
 
+import javax.persistence.EntityNotFoundException;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,7 +18,8 @@ import de.panomenal.core.authentication.auxiliary.exceptions.types.Authenticatio
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import dev.samstevens.totp.exceptions.QrGenerationException;
-import jakarta.persistence.EntityNotFoundException;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 
 @ControllerAdvice
 public class ExceptionController extends ResponseEntityExceptionHandler {
@@ -25,7 +27,7 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
     @Override
     @Nullable
     protected ResponseEntity<Object> handleNoHandlerFoundException(NoHandlerFoundException ex,
-            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+            HttpHeaders headers, HttpStatus status, WebRequest request) {
         return buildErrorResponse(ex,
                 String.format("Could not found the %s method for URL %s", ex.getHttpMethod(), ex.getRequestURL()),
                 HttpStatus.BAD_REQUEST);
@@ -65,6 +67,16 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
         return buildErrorResponse(ex, ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(ExpiredJwtException.class)
+    protected ResponseEntity<Object> handleExpiredJwtException(ExpiredJwtException ex) {
+        return buildErrorResponse(ex, "Token expired", HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(MalformedJwtException.class)
+    protected ResponseEntity<Object> handleMalformedJwtException(MalformedJwtException ex) {
+        return buildErrorResponse(ex, "Token invalid", HttpStatus.UNAUTHORIZED);
     }
 
     /**
