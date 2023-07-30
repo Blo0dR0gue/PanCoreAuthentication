@@ -120,7 +120,9 @@ public class AuthController {
 
     @PostMapping(AppConstants.VERIFY_PATH)
     public ResponseEntity<?> verifyRequest(@NotEmpty @RequestBody String accessToken) {
+        // Throws exception if e.g. the token is expired
         String username = jwtUtils.getUsernameFromToken(accessToken);
+
         if (username != null) {
             UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
             if (jwtUtils.validateToken(accessToken, userDetails)) {
@@ -136,9 +138,14 @@ public class AuthController {
     }
 
     @PostMapping(AppConstants.VERIFY_TWO_FA_PATH)
-    @PreAuthorize("hasRole('ROLE_PRE_VERIFICATION_USER')")
     public ResponseEntity<JwtResponse> verifyTwoFARequest(@NotEmpty @RequestBody String twoFACode,
-            @AuthenticationPrincipal UserDetailsImpl userDetails) throws Invalid2FACodeException {
+            @NotEmpty HttpServletRequest request) throws Invalid2FACodeException {
+        final String token = getTokenFromRequest(request);
+
+        // Throws exception if e.g. the token is expired
+        String username = jwtUtils.getUsernameFromToken(token);
+        UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
+
         if (!verifier.isValidCode(userDetails.getSecret(), twoFACode)) {
             throw new Invalid2FACodeException("Invalid Code");
         }
@@ -156,11 +163,13 @@ public class AuthController {
 
     @PostMapping(AppConstants.REFRESH_PATH)
     public ResponseEntity<JwtResponse> refreshRequest(@NotEmpty HttpServletRequest request) {
-        String authToken = request.getHeader(AppConstants.AUTH_HEADER);
-        // remove bearer + space
-        final String token = authToken.substring(7);
+        final String token = getTokenFromRequest(request);
+
+        // Throws exception if e.g. the token is expired
         String username = jwtUtils.getUsernameFromToken(token);
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
+
+        System.out.println(userDetails.canLogin());
 
         if (jwtUtils.canTokenBeRefreshed(token) && userDetails.canLogin()) {
             String refreshedToken = jwtUtils.refreshToken(token);
@@ -190,6 +199,16 @@ public class AuthController {
         } catch (org.springframework.security.core.AuthenticationException e) {
             throw new AuthenticationException("Authentication failed", e);
         }
+    }
+
+    private String getTokenFromRequest(HttpServletRequest request) throws AuthenticationException {
+        String authToken = request.getHeader(AppConstants.AUTH_HEADER);
+
+        if (authToken == null) {
+            throw new AuthenticationException("You need to provide the JWT Token to Access This resource", null);
+        }
+
+        return authToken.substring(7);
     }
 
 }

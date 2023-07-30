@@ -3,6 +3,8 @@ package de.panomenal.core.authentication.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -22,6 +24,9 @@ import de.panomenal.core.authentication.AppConstants;
 )
 public class AuthConfiguration {
 
+    @Autowired
+    private AuthEntryPointJwt unauthorizedHandler;
+
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         // Setup the encoder for passwords
@@ -35,33 +40,17 @@ public class AuthConfiguration {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Autowired
-    private AuthEntryPointJwt unauthorizedHandler;
-
-    @Autowired
-    private AuthTokenFilter authenticationJwtTokenFilter;
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors()
-                .and()
-                .csrf().disable()
-                .exceptionHandling().authenticationEntryPoint(unauthorizedHandler)
-                .and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
-                .authorizeRequests()
-                .antMatchers(HttpMethod.OPTIONS, AppConstants.API_URL_PATTERN).permitAll() // allows preflights for
-                                                                                           // secured urls
-                .antMatchers(HttpMethod.POST, AppConstants.AUTH_URL_PATTERN).permitAll() // allows authorization
-                .antMatchers(AppConstants.API_URL_PATTERN).hasAnyRole("ADMIN", "USER") // secures all rest api urls
-                .antMatchers("/**").permitAll() // allows all other urls
-                .anyRequest().authenticated();
-
-        // http.addFilterBefore(exceptionHandlerFilter,
-        // UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(authenticationJwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(csrf -> csrf.disable())
+                .exceptionHandling(handling -> handling.authenticationEntryPoint(unauthorizedHandler))
+                .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(requests -> requests
+                        .antMatchers(HttpMethod.OPTIONS, AppConstants.API_URL_PATTERN).permitAll() // allows preflights
+                        .antMatchers(HttpMethod.POST, AppConstants.AUTH_URL_PATTERN).permitAll() // allows authorization
+                        .antMatchers(AppConstants.API_URL_PATTERN).hasAnyRole("ADMIN", "USER") // block everything else
+                        .anyRequest().authenticated());
 
         return http.build();
     }

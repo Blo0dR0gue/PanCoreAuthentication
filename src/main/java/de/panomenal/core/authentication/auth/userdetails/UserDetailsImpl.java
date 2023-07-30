@@ -110,7 +110,7 @@ public class UserDetailsImpl implements UserDetails {
     }
 
     public boolean canLogin() {
-        return !this.isAccountNonExpired() && !this.isAccountNonLocked() && !this.isCredentialsNonExpired()
+        return this.isAccountNonExpired() && this.isAccountNonLocked() && this.isCredentialsNonExpired()
                 && this.isEnabled();
     }
 

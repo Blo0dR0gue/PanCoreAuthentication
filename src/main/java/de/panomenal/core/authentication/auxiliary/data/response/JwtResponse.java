@@ -28,6 +28,7 @@ public class JwtResponse {
 
     public JwtResponse(String accessToken) {
         this.token = accessToken;
+        this.authenticated = true;
     }
 
 }
