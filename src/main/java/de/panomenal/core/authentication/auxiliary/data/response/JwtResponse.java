@@ -14,16 +14,16 @@ public class JwtResponse {
     private String username;
     private String email;
     private String role;
-    private boolean twoFAAuthentication;
+    private boolean authenticated;
 
     public JwtResponse(String accessToken, int id, String username, String email, String role,
-            boolean twoFAAuthentication) {
+            boolean authenticated) {
         this.token = accessToken;
         this.id = id;
         this.username = username;
         this.email = email;
         this.role = role;
-        this.twoFAAuthentication = twoFAAuthentication;
+        this.authenticated = authenticated;
     }
 
     public JwtResponse(String accessToken) {

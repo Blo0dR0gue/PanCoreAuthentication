@@ -15,8 +15,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import de.panomenal.core.authentication.AppConstants;
-import dev.samstevens.totp.secret.DefaultSecretGenerator;
-import dev.samstevens.totp.secret.SecretGenerator;
 
 @Configuration
 @EnableWebSecurity

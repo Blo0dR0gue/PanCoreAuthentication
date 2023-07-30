@@ -76,13 +76,14 @@ public class AuthController {
 
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
         boolean twoFAAuthentication = userDetails.isUsing2FA();
+        boolean isAuthenticated = !twoFAAuthentication;
 
-        String jwtToken = jwtUtils.generateToken(userDetails, twoFAAuthentication);
+        String jwtToken = jwtUtils.generateToken(userDetails, isAuthenticated);
 
         String role = userDetails.getAuthority().getAuthority();
 
         return ResponseEntity.ok(new JwtResponse(jwtToken, userDetails.getId(), userDetails.getUsername(),
-                userDetails.getEmail(), role, twoFAAuthentication));
+                userDetails.getEmail(), role, isAuthenticated));
     }
 
     @PostMapping(AppConstants.REGISTER_PATH)
@@ -126,9 +127,9 @@ public class AuthController {
                 // Is Valid token
                 return ResponseEntity.ok(new VerifyResponse(new UsernamePasswordAuthenticationToken(userDetails,
                         null,
-                        jwtUtils.isTwoFAAuthentication(accessToken)
-                                ? List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name()))
-                                : userDetails.getAuthorities())));
+                        jwtUtils.isAuthenticated(accessToken)
+                                ? userDetails.getAuthorities()
+                                : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name())))));
             }
         }
         return ResponseEntity.badRequest().body(new VerifyResponse(null));
@@ -150,7 +151,7 @@ public class AuthController {
                 userDetails.getUsername(),
                 userDetails.getEmail(),
                 role,
-                false));
+                true));
     }
 
     @PostMapping(AppConstants.REFRESH_PATH)

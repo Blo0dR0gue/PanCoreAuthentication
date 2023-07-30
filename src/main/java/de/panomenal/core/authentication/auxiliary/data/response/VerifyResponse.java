@@ -1,7 +1,6 @@
 package de.panomenal.core.authentication.auxiliary.data.response;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import lombok.Data;
 import lombok.Getter;

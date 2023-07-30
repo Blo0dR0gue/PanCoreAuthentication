@@ -63,9 +63,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null,
                         // add user to pre verification if user uses 2fa. User can only access /verify
-                        jwtUtils.isTwoFAAuthentication(jwtToken)
-                                ? List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name()))
-                                : userDetails.getAuthorities());
+                        jwtUtils.isAuthenticated(jwtToken)
+                                ? userDetails.getAuthorities()
+                                : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name())));
                 usernamePasswordAuthenticationToken
                         .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);

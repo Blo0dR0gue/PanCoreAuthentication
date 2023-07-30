@@ -30,10 +30,10 @@ public class JwtUtils {
     @Value("${pancore.auth.twoFATokenValid}")
     private int twoFATokenValid;
 
-    public String generateToken(UserDetailsImpl userDetails, boolean twoFAAuthentication) {
+    public String generateToken(UserDetailsImpl userDetails, boolean isAuthenticated) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put(AppConstants.TWO_FA_AUTHENTICATION, twoFAAuthentication);
-        return doGenerateToken(claims, userDetails.getUsername(), twoFAAuthentication);
+        claims.put(AppConstants.AUTHENTICATED, isAuthenticated);
+        return doGenerateToken(claims, userDetails.getUsername(), isAuthenticated);
     }
 
     public Boolean canTokenBeRefreshed(String token) {
@@ -58,8 +58,8 @@ public class JwtUtils {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
-    public Boolean isTwoFAAuthentication(String token) {
-        return this.getAllClaimsFromToken(token).get(AppConstants.TWO_FA_AUTHENTICATION, Boolean.class);
+    public Boolean isAuthenticated(String token) {
+        return this.getAllClaimsFromToken(token).get(AppConstants.AUTHENTICATED, Boolean.class);
     }
 
     public String getUsernameFromToken(String token) {
@@ -89,9 +89,9 @@ public class JwtUtils {
         return expiration.before(new Date());
     }
 
-    private String doGenerateToken(Map<String, Object> claims, String subject, Boolean twoFAAuthentication) {
+    private String doGenerateToken(Map<String, Object> claims, String subject, Boolean isAuthenticated) {
         final Date createdDate = new Date();
-        final Date expirationDate = calculateExpirationDate(createdDate, twoFAAuthentication);
+        final Date expirationDate = calculateExpirationDate(createdDate, isAuthenticated);
 
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
 
@@ -99,8 +99,8 @@ public class JwtUtils {
                 .setExpiration(expirationDate).signWith(key, SignatureAlgorithm.HS512).compact();
     }
 
-    private Date calculateExpirationDate(Date createdDate, Boolean twoFAAuthentication) {
-        int expirationTime = twoFAAuthentication ? twoFATokenValid * 1000 : jwtExpiration * 1000;
+    private Date calculateExpirationDate(Date createdDate, Boolean isAuthenticated) {
+        int expirationTime = isAuthenticated ? jwtExpiration * 1000 : twoFATokenValid * 1000;
         return new Date(createdDate.getTime() + expirationTime);
     }
 
