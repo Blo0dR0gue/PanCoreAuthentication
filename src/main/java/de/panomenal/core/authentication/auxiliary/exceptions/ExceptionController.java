@@ -2,13 +2,13 @@ package de.panomenal.core.authentication.auxiliary.exceptions;
 
 import javax.persistence.EntityNotFoundException;
 
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
@@ -23,6 +23,7 @@ import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyEx
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 @ControllerAdvice
 public class ExceptionController extends ResponseEntityExceptionHandler {
@@ -95,6 +96,16 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
         return buildErrorResponse(ex, "Token invalid", HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(RedisConnectionFailureException.class)
+    protected ResponseEntity<Object> handleRedisConnectionFailureException(RedisConnectionFailureException ex) {
+        return buildErrorResponse(ex, "Connection to Redis-Databse failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleAll(Exception ex, WebRequest request) {
+        return buildErrorResponse(ex, "Error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     /**
      * Creates a {@link ResponseEntity} including an {@link ApiErrorResponse}.
      * 
@@ -107,7 +118,8 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
             Exception exception,
             String message,
             HttpStatus httpStatus) {
-        ApiErrorResponse errorResponse = new ApiErrorResponse(httpStatus.value(), message, exception.getMessage());
+        ApiErrorResponse errorResponse = new ApiErrorResponse(httpStatus.value(), message,
+                exception.getLocalizedMessage());
 
         return ResponseEntity.status(httpStatus).body(errorResponse);
     }

@@ -71,6 +71,8 @@ public class AuthController {
     @Autowired
     CodeVerifier verifier;
 
+    // TODO: switch to RequestParam???
+
     @PostMapping(AppConstants.LOGIN_PATH)
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
         authenticate(loginRequest.getUsername(), loginRequest.getPassword());
