@@ -1,7 +1,6 @@
 package de.panomenal.core.authentication.auth.userdetails;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 
 import org.springframework.security.core.GrantedAuthority;

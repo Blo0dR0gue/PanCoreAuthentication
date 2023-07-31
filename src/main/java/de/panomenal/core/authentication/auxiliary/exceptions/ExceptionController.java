@@ -23,7 +23,6 @@ import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyEx
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
-import redis.clients.jedis.exceptions.JedisConnectionException;
 
 @ControllerAdvice
 public class ExceptionController extends ResponseEntityExceptionHandler {
