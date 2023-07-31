@@ -77,6 +77,8 @@ public class AuthController {
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
         authenticate(loginRequest.getUsername(), loginRequest.getPassword());
 
+        // TODO: handle brute force
+
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
         boolean twoFAAuthentication = userDetails.isUsing2FA();
         boolean isAuthenticated = !twoFAAuthentication;
