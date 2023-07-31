@@ -11,12 +11,10 @@ import javax.validation.constraints.NotEmpty;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,11 +28,14 @@ import de.panomenal.core.authentication.auth.userdetails.UserDetailsServiceImpl;
 import de.panomenal.core.authentication.auxiliary.data.request.LoginRequest;
 import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
 import de.panomenal.core.authentication.auxiliary.data.response.JwtResponse;
+import de.panomenal.core.authentication.auxiliary.data.response.LogoutResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.SignUpResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.VerifyResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.TokenException;
 import de.panomenal.core.authentication.role.ERole;
+import de.panomenal.core.authentication.token.TokenService;
 import de.panomenal.core.authentication.user.UserService;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.exceptions.QrGenerationException;
@@ -51,6 +52,9 @@ public class AuthController {
 
     @Autowired
     UserDetailsServiceImpl userDetailsService;
+
+    @Autowired
+    TokenService tokenService;
 
     @Autowired
     JwtUtils jwtUtils;
@@ -71,14 +75,15 @@ public class AuthController {
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
         authenticate(loginRequest.getUsername(), loginRequest.getPassword());
 
-        // TODO: handle logout (add token to blacklist if still valid)
-        // TODO: Account Lockout for brute force protection
-
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
         boolean twoFAAuthentication = userDetails.isUsing2FA();
         boolean isAuthenticated = !twoFAAuthentication;
 
         String jwtToken = jwtUtils.generateToken(userDetails, isAuthenticated);
+
+        if (twoFAAuthentication) {
+            tokenService.addTwoFAToken(jwtToken);
+        }
 
         String role = userDetails.getAuthority().getAuthority();
 
@@ -119,46 +124,57 @@ public class AuthController {
     }
 
     @PostMapping(AppConstants.VERIFY_PATH)
-    public ResponseEntity<?> verifyRequest(@NotEmpty @RequestBody String accessToken) {
-        // Throws exception if e.g. the token is expired
-        String username = jwtUtils.getUsernameFromToken(accessToken);
+    public ResponseEntity<VerifyResponse> verifyRequest(@NotEmpty @RequestBody String accessToken) {
+        if (tokenService.isTwoFAToken(accessToken)) {
+            throw new TokenException("Token is a 2FA-Token");
+        } else if (tokenService.isOnBlacklist(accessToken)) {
+            throw new TokenException("Token is on Blacklist");
+        } else {
 
-        if (username != null) {
-            UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtUtils.validateToken(accessToken, userDetails)) {
-                // Is Valid token
-                return ResponseEntity.ok(new VerifyResponse(new UsernamePasswordAuthenticationToken(userDetails,
-                        null,
-                        jwtUtils.isAuthenticated(accessToken)
-                                ? userDetails.getAuthorities()
-                                : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name())))));
+            // Throws exception if e.g. the token is expired
+            String username = jwtUtils.getUsernameFromToken(accessToken);
+
+            if (username != null) {
+                UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
+                if (jwtUtils.validateToken(accessToken, userDetails)) {
+                    // Is Valid token
+                    return ResponseEntity.ok(new VerifyResponse(new UsernamePasswordAuthenticationToken(userDetails,
+                            null,
+                            jwtUtils.isAuthenticated(accessToken)
+                                    ? userDetails.getAuthorities()
+                                    : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name())))));
+                }
             }
+            return ResponseEntity.badRequest().body(new VerifyResponse(null));
         }
-        return ResponseEntity.badRequest().body(new VerifyResponse(null));
     }
 
     @PostMapping(AppConstants.VERIFY_TWO_FA_PATH)
     public ResponseEntity<JwtResponse> verifyTwoFARequest(@NotEmpty @RequestBody String twoFACode,
-            @NotEmpty HttpServletRequest request) throws Invalid2FACodeException {
+            @NotEmpty HttpServletRequest request) throws Invalid2FACodeException, TokenException {
         final String token = getTokenFromRequest(request);
 
-        // Throws exception if e.g. the token is expired
-        String username = jwtUtils.getUsernameFromToken(token);
-        UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
+        if (tokenService.isTwoFAToken(token)) {
+            // Throws exception if e.g. the token is expired
+            String username = jwtUtils.getUsernameFromToken(token);
+            UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
 
-        if (!verifier.isValidCode(userDetails.getSecret(), twoFACode)) {
-            throw new Invalid2FACodeException("Invalid Code");
+            if (!verifier.isValidCode(userDetails.getSecret(), twoFACode)) {
+                throw new Invalid2FACodeException("Invalid Code");
+            }
+            String jwt = jwtUtils.generateToken(userDetails, false);
+
+            String role = userDetails.getAuthority().getAuthority();
+
+            return ResponseEntity.ok(new JwtResponse(jwt,
+                    userDetails.getId(),
+                    userDetails.getUsername(),
+                    userDetails.getEmail(),
+                    role,
+                    true));
+        } else {
+            throw new TokenException("Token is not a 2FA-Token");
         }
-        String jwt = jwtUtils.generateToken(userDetails, false);
-
-        String role = userDetails.getAuthority().getAuthority();
-
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                userDetails.getId(),
-                userDetails.getUsername(),
-                userDetails.getEmail(),
-                role,
-                true));
     }
 
     @PostMapping(AppConstants.REFRESH_PATH)
@@ -169,21 +185,27 @@ public class AuthController {
         String username = jwtUtils.getUsernameFromToken(token);
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
 
-        System.out.println(userDetails.canLogin());
-
         if (jwtUtils.canTokenBeRefreshed(token) && userDetails.canLogin()) {
             String refreshedToken = jwtUtils.refreshToken(token);
-            // Just send back the token
+            // Add old token to blacklist
+            tokenService.addToBlacklist(token);
+            // Send back the new token
             return ResponseEntity.ok(new JwtResponse(refreshedToken));
         } else {
             // Token cant be refreshed because it is expired or user cant login anymore
+            // Should not be reached. TODO: Rework???
             return ResponseEntity.badRequest().body(new JwtResponse(null));
         }
     }
 
     @PostMapping(AppConstants.LOGOUT_PATH)
-    public ResponseEntity<?> logoutRequest() {
-        return null;
+    public ResponseEntity<?> logoutRequest(@NotEmpty HttpServletRequest request) {
+        final String token = getTokenFromRequest(request);
+        if (tokenService.isOnBlacklist(token)) {
+            throw new TokenException("Token is already on blacklist");
+        }
+        tokenService.addToBlacklist(token);
+        return ResponseEntity.ok(new LogoutResponse(true));
     }
 
     private void authenticate(String username, String password) {
@@ -205,7 +227,7 @@ public class AuthController {
         String authToken = request.getHeader(AppConstants.AUTH_HEADER);
 
         if (authToken == null) {
-            throw new AuthenticationException("You need to provide the JWT Token to Access This resource", null);
+            throw new AuthenticationException("You need to provide the JWT Token to access this resource", null);
         }
 
         return authToken.substring(7);

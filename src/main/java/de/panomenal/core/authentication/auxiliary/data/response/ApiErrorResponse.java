@@ -10,10 +10,8 @@ import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import de.panomenal.core.authentication.auxiliary.resolver.LowerCaseClassNameResolver;
 import lombok.Data;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-@RequiredArgsConstructor
 @Getter
 @Setter
 @Data
@@ -25,6 +23,12 @@ public class ApiErrorResponse {
     private final String message;
     private final String debugMessage;
     private List<ApiSubError> subErrors;
+
+    public ApiErrorResponse(int status, String message, String debugMessage) {
+        this.status = status;
+        this.message = message;
+        this.debugMessage = debugMessage;
+    }
 
     private void addSubError(ApiSubError subError) {
         if (subErrors == null) {

@@ -5,8 +5,10 @@ import javax.persistence.EntityNotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
@@ -16,6 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import de.panomenal.core.authentication.auxiliary.data.response.ApiErrorResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.TokenException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -31,6 +34,14 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
         return buildErrorResponse(ex,
                 String.format("Could not found the %s method for URL %s", ex.getHttpMethod(), ex.getRequestURL()),
                 HttpStatus.BAD_REQUEST);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+            HttpHeaders headers,
+            HttpStatus status,
+            WebRequest request) {
+        return buildErrorResponse(ex, "Request body is missing or malformed.", status);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
@@ -77,6 +88,11 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
     @ExceptionHandler(MalformedJwtException.class)
     protected ResponseEntity<Object> handleMalformedJwtException(MalformedJwtException ex) {
         return buildErrorResponse(ex, "Token invalid", HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(TokenException.class)
+    protected ResponseEntity<Object> handleTokenException(TokenException ex) {
+        return buildErrorResponse(ex, "Token invalid", HttpStatus.BAD_REQUEST);
     }
 
     /**
