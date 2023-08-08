@@ -27,13 +27,16 @@ import de.panomenal.core.authentication.auth.userdetails.UserDetailsImpl;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsServiceImpl;
 import de.panomenal.core.authentication.auxiliary.data.request.LoginRequest;
 import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
+import de.panomenal.core.authentication.auxiliary.data.request.TwoFASetupRequest;
 import de.panomenal.core.authentication.auxiliary.data.response.JwtResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.LogoutResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.SignUpResponse;
+import de.panomenal.core.authentication.auxiliary.data.response.TwoFAResponse;
 import de.panomenal.core.authentication.auxiliary.data.response.VerifyResponse;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.TokenException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.TwoFAException;
 import de.panomenal.core.authentication.role.ERole;
 import de.panomenal.core.authentication.token.TokenService;
 import de.panomenal.core.authentication.user.UserService;
@@ -72,6 +75,8 @@ public class AuthController {
     CodeVerifier verifier;
 
     // TODO: switch to RequestParam???
+    // TODO: use auth filter to get userdetailsimpl and save authendicated not in
+    // token???
 
     @PostMapping(AppConstants.LOGIN_PATH)
     public ResponseEntity<JwtResponse> loginRequest(@Valid @RequestBody LoginRequest loginRequest) {
@@ -97,34 +102,8 @@ public class AuthController {
 
     @PostMapping(AppConstants.REGISTER_PATH)
     public ResponseEntity<SignUpResponse> registerRequest(@Valid @RequestBody RegisterRequest registerRequest) {
-        if (registerRequest.isUsing2FA() && registerRequest.getTwoFACode() == null) {
-            // Is using 2FA but does not provided a code yet. (First register)
-            userService.checkIfUserExists(registerRequest.getUsername(), registerRequest.getEmail());
-
-            String secret = userService.generate2FASecret();
-            QrData qrData = qrDataFactory.newBuilder().label(registerRequest.getEmail()).secret(secret)
-                    .issuer(AppConstants.QR_ISSUER).build();
-
-            try {
-                String qrCodeImg = getDataUriForImage(qrGenerator.generate(qrData), qrGenerator.getImageMimeType());
-                return ResponseEntity.ok().body(new SignUpResponse(true, qrCodeImg, secret, false));
-            } catch (QrGenerationException e) {
-                e.printStackTrace();
-            }
-        } else if (registerRequest.isUsing2FA() && registerRequest.getTwoFACode() != null) {
-            // Is using 2FA code validation.
-            if (!verifier.isValidCode(registerRequest.getTwoFASecret(), registerRequest.getTwoFACode())) {
-                return ResponseEntity.ok(new SignUpResponse(true, null, null, false));
-            } else {
-                userService.registerUser(registerRequest);
-                return ResponseEntity.ok(new SignUpResponse(true, null, null, true));
-            }
-        } else {
-            // Is not using 2FA
-            userService.registerUser(registerRequest);
-            return ResponseEntity.ok(new SignUpResponse(false, null, null, true));
-        }
-        return ResponseEntity.badRequest().body(new SignUpResponse(false, null, null, false));
+        userService.registerUser(registerRequest);
+        return ResponseEntity.ok(new SignUpResponse(true));
     }
 
     @PostMapping(AppConstants.VERIFY_PATH)
@@ -134,7 +113,6 @@ public class AuthController {
         } else if (tokenService.isOnBlacklist(accessToken)) {
             throw new TokenException("Token is on Blacklist");
         } else {
-
             // Throws exception if e.g. the token is expired
             String username = jwtUtils.getUsernameFromToken(accessToken);
 
@@ -151,6 +129,46 @@ public class AuthController {
             }
             return ResponseEntity.badRequest().body(new VerifyResponse(null));
         }
+    }
+
+    @PostMapping(AppConstants.TWO_FA_SETUP)
+    public ResponseEntity<TwoFAResponse> setupTwoFA(@NotEmpty @RequestBody TwoFASetupRequest twoFASetupRequest,
+            @NotEmpty HttpServletRequest request) throws TwoFAException {
+        // TODO: rework that the secret gets stored in redis and this secret is used to
+        // Check for valid jwt token
+        final String token = getTokenFromRequest(request);
+        String username = jwtUtils.getUsernameFromToken(token);
+
+        if (twoFASetupRequest.isEnableTwoFA()) {
+            // enable 2fa
+            if (twoFASetupRequest.getTwoFACode().isEmpty()) {
+                // no code got passed -> setup 2fa
+                String secret = userService.generate2FASecret();
+                QrData qrData = qrDataFactory.newBuilder().label(username).secret(secret)
+                        .issuer(AppConstants.QR_ISSUER).build();
+
+                try {
+                    String qrCodeImg = getDataUriForImage(qrGenerator.generate(qrData), qrGenerator.getImageMimeType());
+                    return ResponseEntity.ok(new TwoFAResponse(secret, qrCodeImg, false));
+                } catch (QrGenerationException e) {
+                    e.printStackTrace();
+                }
+
+            } else {
+                // code got passed -> validate
+                if (!verifier.isValidCode(twoFASetupRequest.getTwoFASecret(), twoFASetupRequest.getTwoFACode())) {
+                    throw new TwoFAException("Code is invalid");
+                } else {
+                    userService.enableTwoFA(username, twoFASetupRequest.getTwoFASecret());
+                    return ResponseEntity.ok(new TwoFAResponse(true));
+                }
+            }
+        } else {
+            // disable 2fa
+            userService.disableTwoFA(username);
+            return ResponseEntity.ok(new TwoFAResponse(true));
+        }
+        throw new TwoFAException("An error occurred");
     }
 
     @PostMapping(AppConstants.VERIFY_TWO_FA_PATH)

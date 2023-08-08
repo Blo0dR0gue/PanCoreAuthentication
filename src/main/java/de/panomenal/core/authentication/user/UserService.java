@@ -1,10 +1,13 @@
 package de.panomenal.core.authentication.user;
 
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import de.panomenal.core.authentication.auxiliary.data.request.RegisterRequest;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.TwoFAException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import de.panomenal.core.authentication.role.ERole;
 import de.panomenal.core.authentication.role.Role;
@@ -49,18 +52,13 @@ public class UserService {
 
         user.setEnabled(true);
 
-        if (requestData.isUsing2FA()) {
-            user.setUsing2FA(true);
-            user.setSecret(requestData.getTwoFASecret());
-        }
-
         String strRole = requestData.getRole();
         Role role = null;
 
         // TODO: Rework this logic
         if (strRole == null) {
             role = roleRepository.findByName(ERole.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                    .orElseThrow(() -> new RuntimeException("Error: Role not found."));
         } else {
             switch (strRole) {
                 case "admin":
@@ -76,6 +74,32 @@ public class UserService {
         user.setRole(role);
         userRepository.save(user);
         return user;
+    }
+
+    public User enableTwoFA(String username, String secret) throws TwoFAException {
+        Optional<User> optional = userRepository.findByUsername(username);
+        if (optional.isPresent()) {
+            User user = optional.get();
+            user.setUsing2FA(true);
+            user.setSecret(secret);
+            userRepository.save(user);
+            return user;
+        } else {
+            throw new TwoFAException("Username " + username + " not found");
+        }
+    }
+
+    public User disableTwoFA(String username) {
+        Optional<User> optional = userRepository.findByUsername(username);
+        if (optional.isPresent()) {
+            User user = optional.get();
+            user.setUsing2FA(false);
+            user.setSecret("");
+            userRepository.save(user);
+            return user;
+        } else {
+            throw new TwoFAException("Username " + username + " not found");
+        }
     }
 
 }

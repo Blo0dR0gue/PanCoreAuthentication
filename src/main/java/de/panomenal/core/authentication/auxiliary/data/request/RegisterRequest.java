@@ -27,10 +27,4 @@ public class RegisterRequest {
     @Size(max = 255)
     private String email;
 
-    @NotNull
-    private boolean using2FA;
-
-    private String twoFACode;
-    private String twoFASecret;
-
 }

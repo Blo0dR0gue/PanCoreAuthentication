@@ -19,6 +19,7 @@ import de.panomenal.core.authentication.auxiliary.data.response.ApiErrorResponse
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.TokenException;
+import de.panomenal.core.authentication.auxiliary.exceptions.types.TwoFAException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.UserAlreadyExistAuthenticationException;
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -98,6 +99,11 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RedisConnectionFailureException.class)
     protected ResponseEntity<Object> handleRedisConnectionFailureException(RedisConnectionFailureException ex) {
         return buildErrorResponse(ex, "Connection to Redis-Databse failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(TwoFAException.class)
+    protected ResponseEntity<Object> handleTwoFAException(TwoFAException ex) {
+        return buildErrorResponse(ex, "Two Factor Authentication error", HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
