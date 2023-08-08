@@ -80,10 +80,14 @@ public class UserService {
         Optional<User> optional = userRepository.findByUsername(username);
         if (optional.isPresent()) {
             User user = optional.get();
-            user.setUsing2FA(true);
-            user.setSecret(secret);
-            userRepository.save(user);
-            return user;
+            if (user.isUsing2FA()) {
+                throw new TwoFAException("Username " + username + " is already using 2FA");
+            } else {
+                user.setUsing2FA(true);
+                user.setSecret(secret);
+                userRepository.save(user);
+                return user;
+            }
         } else {
             throw new TwoFAException("Username " + username + " not found");
         }
@@ -93,10 +97,14 @@ public class UserService {
         Optional<User> optional = userRepository.findByUsername(username);
         if (optional.isPresent()) {
             User user = optional.get();
-            user.setUsing2FA(false);
-            user.setSecret("");
-            userRepository.save(user);
-            return user;
+            if (user.isUsing2FA()) {
+                user.setUsing2FA(false);
+                user.setSecret("");
+                userRepository.save(user);
+                return user;
+            } else {
+                throw new TwoFAException("Username " + username + " is not using 2FA");
+            }
         } else {
             throw new TwoFAException("Username " + username + " not found");
         }
