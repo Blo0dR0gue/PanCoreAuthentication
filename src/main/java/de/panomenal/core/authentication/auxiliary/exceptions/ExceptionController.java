@@ -1,5 +1,8 @@
 package de.panomenal.core.authentication.auxiliary.exceptions;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.persistence.EntityNotFoundException;
 
 import org.springframework.data.redis.RedisConnectionFailureException;
@@ -9,6 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
@@ -16,6 +22,8 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import de.panomenal.core.authentication.auxiliary.data.response.ApiErrorResponse;
+import de.panomenal.core.authentication.auxiliary.data.response.ApiMessageError;
+import de.panomenal.core.authentication.auxiliary.data.response.ApiSubError;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.AuthenticationException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.Invalid2FACodeException;
 import de.panomenal.core.authentication.auxiliary.exceptions.types.TokenException;
@@ -42,7 +50,21 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
             HttpHeaders headers,
             HttpStatus status,
             WebRequest request) {
-        return buildErrorResponse(ex, "Request body is missing or malformed.", status);
+        return buildErrorResponse(ex, "Request body is missing or malformed. Is the json-data missing?", status);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+            HttpHeaders headers, HttpStatus status, WebRequest request) {
+        List<ApiSubError> errors = new ArrayList<ApiSubError>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            errors.add(new ApiMessageError(error.getField() + ": " + error.getDefaultMessage()));
+        }
+        for (ObjectError error : ex.getBindingResult().getGlobalErrors()) {
+            errors.add(new ApiMessageError(error.getObjectName() + ": " + error.getDefaultMessage()));
+        }
+
+        return buildErrorResponse(ex, "Argument not valid", HttpStatus.BAD_REQUEST, errors);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
@@ -126,6 +148,17 @@ public class ExceptionController extends ResponseEntityExceptionHandler {
         ApiErrorResponse errorResponse = new ApiErrorResponse(httpStatus.value(), message,
                 exception.getLocalizedMessage());
 
+        return ResponseEntity.status(httpStatus).body(errorResponse);
+    }
+
+    private ResponseEntity<Object> buildErrorResponse(
+            Exception exception,
+            String message,
+            HttpStatus httpStatus,
+            List<ApiSubError> subErrors) {
+        ApiErrorResponse errorResponse = new ApiErrorResponse(httpStatus.value(), message,
+                exception.getLocalizedMessage());
+        errorResponse.addSubErrors(subErrors);
         return ResponseEntity.status(httpStatus).body(errorResponse);
     }
 

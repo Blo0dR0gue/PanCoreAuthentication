@@ -1,6 +1,7 @@
 package de.panomenal.core.authentication.auxiliary.data.response;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -30,15 +31,18 @@ public class ApiErrorResponse {
         this.debugMessage = debugMessage;
     }
 
-    private void addSubError(ApiSubError subError) {
-        if (subErrors == null) {
-            subErrors = new ArrayList<>();
+    public void addSubError(ApiSubError subError) {
+        if (this.subErrors == null) {
+            this.subErrors = new ArrayList<>();
         }
-        subErrors.add(subError);
+        this.subErrors.add(subError);
     }
 
-    public void addValidationError(ApiValidationError validationError) {
-        addSubError(validationError);
+    public void addSubErrors(Collection<ApiSubError> subErrors) {
+        if (this.subErrors == null) {
+            this.subErrors = new ArrayList<>();
+        }
+        this.subErrors.addAll(subErrors);
     }
 
 }
