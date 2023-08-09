@@ -2,6 +2,7 @@ package de.panomenal.core.authentication.auth;
 
 import static dev.samstevens.totp.util.Utils.getDataUriForImage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -15,11 +16,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import com.beust.jcommander.internal.Lists;
 
 import de.panomenal.core.authentication.AppConstants;
 import de.panomenal.core.authentication.auth.jwt.JwtUtils;
@@ -107,7 +111,9 @@ public class AuthController {
     }
 
     @PostMapping(AppConstants.VERIFY_PATH)
-    public ResponseEntity<VerifyResponse> verifyRequest(@NotEmpty @RequestBody String accessToken) {
+    public ResponseEntity<VerifyResponse> verifyRequest(@NotEmpty HttpServletRequest request) {
+        final String accessToken = getTokenFromRequest(request);
+
         if (tokenService.isTwoFAToken(accessToken)) {
             throw new TokenException("Token is a 2FA-Token");
         } else if (tokenService.isOnBlacklist(accessToken)) {
@@ -120,14 +126,14 @@ public class AuthController {
                 UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(username);
                 if (jwtUtils.validateToken(accessToken, userDetails)) {
                     // Is Valid token
-                    return ResponseEntity.ok(new VerifyResponse(new UsernamePasswordAuthenticationToken(userDetails,
-                            null,
-                            jwtUtils.isAuthenticated(accessToken)
-                                    ? userDetails.getAuthorities()
-                                    : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name())))));
+                    List<GrantedAuthority> authorities = jwtUtils.isAuthenticated(accessToken)
+                            ? (List<GrantedAuthority>) userDetails.getAuthorities()
+                            : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name()));
+                    return ResponseEntity
+                            .ok(new VerifyResponse("Ok", jwtUtils.isAuthenticated(accessToken), username, authorities));
                 }
             }
-            return ResponseEntity.badRequest().body(new VerifyResponse(null));
+            return ResponseEntity.badRequest().body(new VerifyResponse("", false, "", new ArrayList<>()));
         }
     }
 
