@@ -23,8 +23,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import com.beust.jcommander.internal.Lists;
-
 import de.panomenal.core.authentication.AppConstants;
 import de.panomenal.core.authentication.auth.jwt.JwtUtils;
 import de.panomenal.core.authentication.auth.userdetails.UserDetailsImpl;
