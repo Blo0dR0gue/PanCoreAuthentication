@@ -217,11 +217,8 @@ public class AuthController {
             tokenService.addToBlacklist(token);
             // Send back the new token
             return ResponseEntity.ok(new JwtResponse(refreshedToken));
-        } else {
-            // Token cant be refreshed because it is expired or user cant login anymore
-            // Should not be reached. TODO: Rework???
-            return ResponseEntity.badRequest().body(new JwtResponse(null));
         }
+        return ResponseEntity.badRequest().body(new JwtResponse(null));
     }
 
     @PostMapping(AppConstants.LOGOUT_PATH)
