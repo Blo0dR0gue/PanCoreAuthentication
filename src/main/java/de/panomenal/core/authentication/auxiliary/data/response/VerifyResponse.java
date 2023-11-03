@@ -16,7 +16,7 @@ import lombok.Setter;
 public class VerifyResponse {
 
     private String status;
-    private boolean isAuthenticated;
+    private boolean authenticated;
     private String username;
     private List<GrantedAuthority> authorities;
 

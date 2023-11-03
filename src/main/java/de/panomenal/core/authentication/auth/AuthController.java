@@ -11,6 +11,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -85,6 +86,7 @@ public class AuthController {
         authenticate(loginRequest.getUsername(), loginRequest.getPassword());
 
         // TODO: handle brute force
+        // TODO: Add open tokens to blacklist if the user still has valid tokens
 
         UserDetailsImpl userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
         boolean twoFAAuthentication = userDetails.isUsing2FA();
@@ -128,7 +130,9 @@ public class AuthController {
                             ? (List<GrantedAuthority>) userDetails.getAuthorities()
                             : List.of(new SimpleGrantedAuthority(ERole.ROLE_PRE_VERIFICATION_USER.name()));
                     return ResponseEntity
-                            .ok(new VerifyResponse("Ok", jwtUtils.isAuthenticated(accessToken), username, authorities));
+                            .status(jwtUtils.isAuthenticated(accessToken) ? HttpStatus.OK : HttpStatus.UNAUTHORIZED)
+                            .body(new VerifyResponse("Ok", jwtUtils.isAuthenticated(accessToken), username,
+                                    authorities));
                 }
             }
             return ResponseEntity.badRequest().body(new VerifyResponse("", false, "", new ArrayList<>()));
@@ -188,9 +192,11 @@ public class AuthController {
             if (!verifier.isValidCode(userDetails.getSecret(), twoFACode)) {
                 throw new Invalid2FACodeException("Invalid Code");
             }
-            String jwt = jwtUtils.generateToken(userDetails, false);
+            String jwt = jwtUtils.generateToken(userDetails, true);
 
             String role = userDetails.getAuthority().getAuthority();
+            // Add token to blacklist
+            tokenService.addToBlacklist(token);
 
             return ResponseEntity.ok(new JwtResponse(jwt,
                     userDetails.getId(),

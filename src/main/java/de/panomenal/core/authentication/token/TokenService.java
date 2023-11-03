@@ -24,11 +24,18 @@ public class TokenService {
 
     public boolean isOnBlacklist(String jwtToken) {
         Optional<Token> token = tokenRepository.findById(jwtToken);
-        return token.isPresent();
+        return token.isPresent() ? !token.get().isTwoFAToken() : false;
     }
 
     public void addToBlacklist(String jwtToken) {
-        tokenRepository.save(new Token(jwtToken, false));
+        Optional<Token> token = tokenRepository.findById(jwtToken);
+        if (token.isPresent()) {
+            token.get().setTwoFAToken(false);
+            tokenRepository.save(token.get());
+        } else {
+            tokenRepository.save(new Token(jwtToken, false));
+        }
+
     }
 
     public void addTwoFAToken(String jwtToken) {
